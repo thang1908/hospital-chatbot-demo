@@ -1,5 +1,5 @@
 version: "2"
-authtoken: 33ghZyQzqHn8KJjQb9TW2GUEtR8_6m3QS4NkHuT7nqtrpFW7a
+authtoken: 
 tunnels:
   backend:
     proto: http
