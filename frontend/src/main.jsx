@@ -501,10 +501,41 @@ function PatientForm({ patient, setPatient, onConfirm }) {
 
 // ─── DateTimeForm ──────────────────────────────────────────────────────────
 function DateTimeForm({ specialty, slots, locked, onConfirm, loading }) {
-  // Tạo danh sách ngày + giờ từ slots (hoặc fallback tự sinh 7 ngày)
+  const [specialties, setSpecialties] = React.useState([]);
+  const [selectedSpecialty, setSelectedSpecialty] = React.useState(specialty || "");
+  const [availableSlots, setAvailableSlots] = React.useState(slots || []);
+  const [loadingSlots, setLoadingSlots] = React.useState(false);
+
+  const [selectedDate, setSelectedDate] = React.useState("");
+  const [selectedTime, setSelectedTime] = React.useState("");
+  const [confirmed, setConfirmed] = React.useState(false);
+
+  // Load danh sách chuyên khoa từ API
+  React.useEffect(() => {
+    fetch(`${API_BASE_URL}/api/catalog/specialties`)
+      .then((res) => res.json())
+      .then((data) => setSpecialties(data))
+      .catch(() => {});
+  }, []);
+
+  // Khi chọn chuyên khoa khác → fetch lại slots
+  React.useEffect(() => {
+    if (!selectedSpecialty) return;
+    setLoadingSlots(true);
+    fetch(`${API_BASE_URL}/api/catalog/slots?specialty=${encodeURIComponent(selectedSpecialty)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setAvailableSlots(data);
+        setSelectedDate("");
+        setSelectedTime("");
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSlots(false));
+  }, [selectedSpecialty]);
+
   const availableDates = React.useMemo(() => {
-    if (slots?.length) {
-      const unique = [...new Set(slots.map((s) => s.date))].sort();
+    if (availableSlots?.length) {
+      const unique = [...new Set(availableSlots.map((s) => s.date))].sort();
       return unique;
     }
     // fallback: 7 ngày kế tiếp
@@ -515,21 +546,19 @@ function DateTimeForm({ specialty, slots, locked, onConfirm, loading }) {
       days.push(d.toISOString().slice(0, 10));
     }
     return days;
-  }, [slots]);
-
-  const [selectedDate, setSelectedDate] = React.useState("");
-  const [selectedTime, setSelectedTime] = React.useState("");
-  const [confirmed, setConfirmed] = React.useState(false);
+  }, [availableSlots]);
 
   const timesForDate = React.useMemo(() => {
     if (!selectedDate) return [];
-    if (slots?.length) {
-      return slots.filter((s) => s.date === selectedDate).map((s) => ({ time: s.time, slotObj: s }));
+    if (availableSlots?.length) {
+      return availableSlots
+        .filter((s) => s.date === selectedDate)
+        .map((s) => ({ time: s.time, slotObj: s }));
     }
     return ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00"].map(
       (t) => ({ time: t, slotObj: null })
     );
-  }, [selectedDate, slots]);
+  }, [selectedDate, availableSlots]);
 
   if (locked || confirmed) {
     return (
@@ -541,11 +570,11 @@ function DateTimeForm({ specialty, slots, locked, onConfirm, loading }) {
   }
 
   function handleConfirm() {
-    if (!selectedDate || !selectedTime) return;
+    if (!selectedSpecialty || !selectedDate || !selectedTime) return;
     setConfirmed(true);
     // Tìm slot object nếu có, không thì tự tạo
-    const found = slots?.find((s) => s.date === selectedDate && s.time === selectedTime);
-    const slot = found || { date: selectedDate, time: selectedTime, specialty, doctor: null };
+    const found = availableSlots?.find((s) => s.date === selectedDate && s.time === selectedTime);
+    const slot = found || { date: selectedDate, time: selectedTime, specialty: selectedSpecialty, doctor: null };
     onConfirm(slot);
   }
 
@@ -555,7 +584,24 @@ function DateTimeForm({ specialty, slots, locked, onConfirm, loading }) {
         <CalendarCheck size={14} />
         Hãy điền thông tin lịch hẹn vào đây
       </p>
-      <p className="form-specialty-label">Chuyên khoa: <strong>{specialty}</strong></p>
+
+      <label>
+        Chọn chuyên khoa *
+        <select
+          value={selectedSpecialty}
+          onChange={(e) => setSelectedSpecialty(e.target.value)}
+          className="dt-select"
+        >
+          <option value="">-- Chọn chuyên khoa --</option>
+          {specialties.map((sp) => (
+            <option key={sp.id} value={sp.name}>{sp.name}</option>
+          ))}
+        </select>
+      </label>
+
+      {loadingSlots && (
+        <p style={{ fontSize: 12, color: "var(--gray-400)" }}>Đang tải lịch trống...</p>
+      )}
 
       <label>
         Chọn ngày khám
@@ -563,6 +609,7 @@ function DateTimeForm({ specialty, slots, locked, onConfirm, loading }) {
           value={selectedDate}
           onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(""); }}
           className="dt-select"
+          disabled={!selectedSpecialty || loadingSlots}
         >
           <option value="">-- Chọn ngày --</option>
           {availableDates.map((d) => (
@@ -589,7 +636,7 @@ function DateTimeForm({ specialty, slots, locked, onConfirm, loading }) {
       <button
         className="confirm-btn"
         onClick={handleConfirm}
-        disabled={!selectedDate || !selectedTime || loading}
+        disabled={!selectedSpecialty || !selectedDate || !selectedTime || loading || loadingSlots}
       >
         {loading ? "Đang đặt lịch..." : "Xác nhận đặt lịch"}
       </button>
