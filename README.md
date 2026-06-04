@@ -1,38 +1,36 @@
 # Hospital Appointment Chatbot Demo
 
-Prototype hackathon cho de tai chatbot ho tro dat lich kham benh vien.
+Prototype hackathon cho đề tài chatbot hỗ trợ đặt lịch khám bệnh viện.
 
-## Muc tieu demo
+## Mục tiêu demo
 
-Flow truyen thong hien tai:
+Flow truyền thống hiện tại:
 
-```text
-Nhap thong tin nguoi kham
--> Chon kham theo chuyen khoa hoac theo bac si
--> Chon ngay kham
--> Xem lich con trong
--> Dat lich va xac nhan
+```
+Nhập thông tin người khám
+→ Chọn khám theo chuyên khoa hoặc theo bác sĩ
+→ Chọn ngày khám
+→ Xem lịch còn trống
+→ Đặt lịch và xác nhận
 ```
 
-Diem gay:
+**Điểm gãy:** Người bệnh thường không biết nên chọn chuyên khoa hay bác sĩ nào khi chỉ có triệu chứng ban đầu.
 
-```text
-Nguoi benh thuong khong biet nen chon chuyen khoa hay bac si nao khi chi co trieu chung ban dau.
+Prototype này thêm một lớp AI trước flow đặt lịch:
+
+```
+Nhập thông tin người khám
+→ Chatbot hỏi đáp triệu chứng
+→ AI gợi ý chuyên khoa hoặc phát hiện red flag
+→ Chọn ngày, xem slot còn trống
+→ Xác nhận lịch khám
 ```
 
-Prototype nay them mot lop AI truoc flow dat lich:
+---
 
-```text
-Nhap thong tin nguoi kham
--> Chatbot hoi dap trieu chung
--> AI goi y chuyen khoa hoac phat hien red flag
--> Chon ngay, xem slot con trong
--> Xac nhan lich kham
+## Kiến trúc
+
 ```
-
-## Kien truc
-
-```text
 hospital-chatbot-demo
 ├── docker-compose.yml
 ├── backend
@@ -41,144 +39,217 @@ hospital-chatbot-demo
 │   ├── requirements.txt
 │   └── app
 │       ├── data
-│       │   └── chuyenkhoa.json
-│       ├── main.py
+│       │   └── chuyenkhoa.json        # Dữ liệu 30+ chuyên khoa
+│       ├── main.py                    # FastAPI entry point
+│       ├── core
+│       │   └── config.py
 │       ├── db
-│       │   ├── models.py
-│       │   └── session.py
+│       │   ├── models.py              # Booking, SpecialtyInfo, Doctor, AppointmentSlot
+│       │   ├── session.py
+│       │   └── init.py                # Seed DB khi khởi động
 │       ├── routers
 │       │   ├── bookings.py
 │       │   ├── catalog.py
 │       │   └── chat.py
 │       └── services
-│           ├── mock_catalog.py
-│           ├── specialty_knowledge.py
-│           ├── specialty_tools.py
-│           └── triage_graph.py
+│           ├── mock_catalog.py        # Dữ liệu mẫu bác sĩ + slot (seed + fallback)
+│           ├── specialty_knowledge.py # Logic tìm kiếm & scoring chuyên khoa
+│           ├── tools.py               # LangChain tools: search_hospital_specialties, query_available_slots
+│           └── triage_graph.py        # LangGraph workflow
 └── frontend
     ├── Dockerfile
     ├── package.json
     └── src
-        ├── main.jsx
-        └── styles.css
+        ├── main.jsx                   # React app (single file)
+        └── styles.css                 # Mobile-style UI
 ```
+
+---
 
 ## Tech stack
 
-- Frontend: React + Vite
-- Backend: FastAPI
-- AI workflow: LangGraph
-- AI agent layer: LangChain `create_agent` + `ChatOpenAI`
-- AI tool: `search_hospital_specialties` tra cuu DB chuyen khoa seed tu `chuyenkhoa.json`
-- Database: Postgres
-- Container: Docker Compose
+| Layer | Công nghệ |
+|---|---|
+| Frontend | React + Vite, giao diện kiểu mobile app |
+| Backend | FastAPI |
+| AI workflow | LangGraph (`StateGraph`) |
+| AI agent | LangChain `create_agent` + `ChatOpenAI` (gpt-4o-mini) |
+| AI tools | `search_hospital_specialties`, `query_available_slots` |
+| Database | PostgreSQL (Docker) |
+| Container | Docker Compose |
 
-## Chay demo bang Docker
+---
+
+## Luồng AI xử lý triệu chứng
+
+Khi user gửi tin nhắn mô tả triệu chứng, backend chạy qua pipeline sau:
+
+```
+User nhập triệu chứng
+        │
+        ▼
+POST /api/chat/triage
+(gửi kèm: thông tin bệnh nhân + toàn bộ messages)
+        │
+        ▼
+┌─────────────────────────────────────────────────────┐
+│                   LangGraph                         │
+│                                                     │
+│  1. collect_context                                 │
+│     → Tách latest_user_text (tin nhắn mới nhất)    │
+│     → Tạo conversation_text (8 turns gần nhất)     │
+│                                                     │
+│  2. analyze_symptoms  ← node chính                 │
+│     → Gọi LangChain Agent (ChatOpenAI)             │
+│     → Agent bắt buộc gọi tool trước khi trả kết quả│
+│                                                     │
+│       Tool 1: search_hospital_specialties          │
+│         Input : chuỗi triệu chứng                  │
+│         Xử lý : normalize text → tokenize          │
+│                 → score từng chuyên khoa trong DB  │
+│                   (token overlap + hint keywords)  │
+│         Output: top 6 chuyên khoa phù hợp nhất    │
+│                                                     │
+│       Tool 2: query_available_slots                │
+│         Input : tên chuyên khoa đã chọn            │
+│         Xử lý : query bảng appointment_slots       │
+│                 → fuzzy match tên chuyên khoa      │
+│         Output: danh sách slot còn trống           │
+│                                                     │
+│     → Agent trả TriageAnalysis (structured output)│
+│       • specialty + specialty_id                   │
+│       • confidence (0–1)                           │
+│       • red_flags / warning_signs                  │
+│       • needs_more_info                            │
+│       • follow_up_questions                        │
+│       • reasoning_summary                          │
+│       • matched_specialties + slots                │
+│                                                     │
+│  3. route_case (conditional edge)                  │
+│     ├── red_flags?      → handle_red_flag          │
+│     │     Dừng flow, khuyến nghị cấp cứu           │
+│     ├── needs_more_info → handle_low_confidence    │
+│     │     Hỏi thêm 1–2 câu làm rõ                 │
+│     └── đủ thông tin   → handle_happy_path        │
+│           Gợi ý chuyên khoa + hiện slot đặt lịch  │
+└─────────────────────────────────────────────────────┘
+        │
+        ▼
+JSON response → Frontend hiển thị bubble chat
+```
+
+### Nguồn dữ liệu
+
+| Bảng / File | Nội dung | Được dùng bởi |
+|---|---|---|
+| `chuyenkhoa.json` | 30+ chuyên khoa, tên + mô tả | Seed vào Postgres lúc khởi động |
+| `mock_catalog.py` | 8 bác sĩ + 14 slot mẫu | Seed DB; fallback khi DB trống |
+| Postgres `specialties` | Chuyên khoa + search_text đã index | Tool 1: tìm kiếm chuyên khoa |
+| Postgres `appointment_slots` | Lịch trống theo ngày + giờ | Tool 2: truy vấn slot |
+| Postgres `bookings` | Lịch hẹn đã xác nhận | Router `/api/bookings` |
+
+### Fallback khi không có OpenAI key
+
+Agent trả về `needs_more_info=true` với thông báo lỗi rõ ràng. Frontend hiển thị low-confidence path, không crash.
+
+---
+
+## Chạy demo bằng Docker
 
 ```bash
 cp backend/.env.example backend/.env
-# Dien OPENAI_API_KEY trong backend/.env de dung ChatOpenAI agent.
-# Neu bo trong key, backend tu fallback ve rule + specialty DB.
+# Điền OPENAI_API_KEY trong backend/.env
 docker compose up --build
 ```
 
-Docker Compose tu nap `backend/.env` cho backend, nen khong can truyen `--env-file`.
-
-Mo:
-
+Mở:
 - Frontend: http://localhost:5173
 - Backend docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-## API chinh
+---
+
+## API chính
 
 ### Triage chat
 
 ```http
 POST /api/chat/triage
+Content-Type: application/json
+
+{
+  "patient": { "name": "...", "phone": "...", "birth_year": 1990 },
+  "messages": [
+    { "role": "user", "content": "Tôi đau bụng âm ỉ 3 ngày nay" }
+  ]
+}
 ```
 
-Input gom thong tin nguoi kham va danh sach message. Backend chay qua LangGraph:
-
-```text
-collect_context -> analyze_symptoms(agent + specialty-search tool + safety rules) -> route
-  -> happy
-  -> low-confidence
-  -> failure / red flag
+Response:
+```json
+{
+  "path": "happy",
+  "reply": "Dựa trên mô tả, tôi gợi ý khám Nội - Tiêu Hóa.",
+  "specialty": "Nội - Tiêu Hóa",
+  "specialty_id": "...",
+  "confidence": 0.9,
+  "slots": [...],
+  "booking_ready": true
+}
 ```
 
-Danh muc chuyen khoa duoc seed vao bang `specialties` khi backend khoi dong.
-Agent phai goi tool tim chuyen khoa truoc khi tra structured output.
-
-### Lay slot con trong
+### Lấy slot còn trống
 
 ```http
-GET /api/catalog/slots?specialty=Tieu%20hoa&date=2026-06-05
+GET /api/catalog/slots?specialty=Nội - Tiêu Hóa&date=2026-06-05
 ```
 
-### Tao booking
+### Tạo booking
 
 ```http
 POST /api/bookings
 ```
 
-Booking duoc luu vao Postgres de demo sau khi user xac nhan.
+---
 
 ## Test case demo
 
-Happy path:
+**Happy path** — triệu chứng rõ, đủ để chọn chuyên khoa:
+```
+Tôi đau bụng âm ỉ 3 ngày nay, hay buồn nôn sau khi ăn
+```
+→ Gợi ý Nội - Tiêu Hóa → hiện slot → xác nhận đặt lịch.
 
-```text
-Toi dau bung am i 3 ngay nay, hay buon non sau khi an
+**Low-confidence path** — triệu chứng mơ hồ:
+```
+Tôi thấy mệt
+```
+→ Bot hỏi thêm, không tự kết luận chuyên khoa.
+
+**Red flag path** — dấu hiệu khẩn cấp:
+```
+Tôi đau ngực dữ dội và khó thở
+```
+→ Bot dừng flow đặt lịch, khuyến nghị liên hệ cấp cứu.
+
+**Correction path:**
+```
+Chọn slot → vào màn xác nhận → bấm Sửa lịch → chọn slot khác.
 ```
 
-Ket qua mong doi:
+---
 
-```text
-Goi y chuyen khoa Tieu hoa -> hien slot -> xac nhan dat lich.
-```
+## Không build trong demo 3 tiếng
 
-Low-confidence path:
+- Đăng nhập và OTP
+- Tích hợp lịch thật của bệnh viện
+- Thanh toán
+- Hồ sơ bệnh án
+- Chẩn đoán bệnh hoặc kê đơn
+- Admin dashboard
 
-```text
-Toi thay met
-```
+---
 
-Ket qua mong doi:
+## Câu nói khi demo
 
-```text
-Bot hoi them thong tin, khong tu ket luan chuyen khoa.
-```
-
-Failure path:
-
-```text
-Toi dau nguc du doi va kho tho
-```
-
-Ket qua mong doi:
-
-```text
-Bot dung flow dat lich thuong va khuyen nghi lien he cap cuu/nhan vien benh vien.
-```
-
-Correction path:
-
-```text
-Chon slot -> vao man xac nhan -> bam Sua lich -> chon slot khac.
-```
-
-## Khong build trong demo 3 tieng
-
-- Dang nhap va OTP.
-- Tich hop lich that cua benh vien.
-- Thanh toan.
-- Ho so benh an.
-- Chan doan benh hoac ke don.
-- Admin dashboard.
-
-## Cau noi khi demo
-
-```text
-Prototype khong thay the toan bo flow dat lich truyen thong. No chi giai quyet diem gay truoc khi dat lich: nguoi benh khong biet nen chon chuyen khoa hay bac si nao. AI hoi them trieu chung, goi y chuyen khoa hoac dung flow khi co red flag, sau do user van xac nhan lich kham bang form ro rang.
-```
+> Prototype không thay thế toàn bộ flow đặt lịch truyền thống. Nó chỉ giải quyết điểm gãy trước khi đặt lịch: người bệnh không biết nên chọn chuyên khoa hay bác sĩ nào. AI hỏi thêm triệu chứng, gợi ý chuyên khoa hoặc dừng flow khi có red flag, sau đó user vẫn xác nhận lịch khám bằng form rõ ràng.
