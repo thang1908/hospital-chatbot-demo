@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hospital Chatbot Demo - Compact Slides</title>
+  <style>
+    :root {
+      --ink: #132023;
+      --muted: #627174;
+      --paper: #f6f8f7;
+      --card: #ffffff;
+      --line: #dbe4e1;
+      --teal: #0f8f83;
+      --blue: #1684d8;
+      --red: #df574b;
+      --gold: #dfa625;
+      --purple: #6757c8;
+      --dark: #111a1d;
+      --shadow: 0 26px 90px rgba(17, 26, 29, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(22,132,216,.18), transparent 28%),
+        radial-gradient(circle at 88% 78%, rgba(223,87,75,.16), transparent 30%),
+        linear-gradient(135deg, #eef3f1, #dae4e1);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .stage {
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+    }
+
+    .slide {
+      display: none;
+      position: relative;
+      width: min(1240px, calc(100vw - 56px));
+      aspect-ratio: 16 / 9;
+      max-height: calc(100vh - 56px);
+      padding: 54px 62px;
+      overflow: hidden;
+      border: 1px solid rgba(19,32,35,.1);
+      border-radius: 30px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .slide.active { display: block; }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 9px;
+      background: linear-gradient(90deg, var(--teal), var(--blue), var(--purple), var(--red), var(--gold));
+    }
+
+    .kicker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--teal);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .kicker::before {
+      content: "";
+      width: 44px;
+      height: 3px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      margin-top: 28px;
+      max-width: 760px;
+      font-size: 74px;
+      line-height: .95;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-top: 18px;
+      max-width: 940px;
+      font-size: 49px;
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 22px;
+      line-height: 1.18;
+    }
+
+    .lead {
+      margin-top: 20px;
+      max-width: 790px;
+      color: var(--muted);
+      font-size: 23px;
+      line-height: 1.42;
+    }
+
+    .footer {
+      position: absolute;
+      left: 62px;
+      right: 62px;
+      bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      color: rgba(19,32,35,.55);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: 38px;
+      align-items: center;
+      height: 100%;
+      padding-bottom: 18px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.78);
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--teal);
+    }
+
+    .dot.blue { background: var(--blue); }
+    .dot.red { background: var(--red); }
+    .dot.gold { background: var(--gold); }
+    .dot.purple { background: var(--purple); }
+
+    .phone-wrap {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 520px;
+      border-radius: 28px;
+      border: 1px solid rgba(15,143,131,.16);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.92), rgba(239,249,247,.76)),
+        radial-gradient(circle at 86% 18%, rgba(103,87,200,.18), transparent 31%);
+    }
+
+    .phone {
+      width: 292px;
+      height: 550px;
+      padding: 12px;
+      border-radius: 40px;
+      background: #0e171a;
+      box-shadow: 0 28px 72px rgba(17,26,29,.28);
+    }
+
+    .screen {
+      height: 100%;
+      overflow: hidden;
+      border-radius: 30px;
+      background: #edf2f1;
+    }
+
+    .phone-head {
+      height: 82px;
+      padding: 16px;
+      color: white;
+      background: #075d58;
+    }
+
+    .status {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 10px;
+      font-weight: 900;
+      opacity: .85;
+    }
+
+    .app-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .app-icon {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.15);
+      font-size: 11px;
+    }
+
+    .phone-body {
+      padding: 14px 12px;
+    }
+
+    .bubble {
+      width: fit-content;
+      max-width: 88%;
+      margin-bottom: 9px;
+      padding: 9px 11px;
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 2px 10px rgba(17,26,29,.08);
+      font-size: 11px;
+      line-height: 1.38;
+    }
+
+    .bubble.user {
+      margin-left: auto;
+      color: white;
+      background: var(--blue);
+    }
+
+    .bubble.alert {
+      color: #8f2a23;
+      background: #ffe8e5;
+    }
+
+    .mini-slot {
+      display: inline-flex;
+      margin-top: 7px;
+      margin-right: 4px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: #075d58;
+      background: #dff5ef;
+      font-size: 9px;
+      font-weight: 900;
+    }
+
+    .cards-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-top: 32px;
+    }
+
+    .card {
+      min-height: 210px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,.84);
+    }
+
+    .card.teal { border-top: 8px solid var(--teal); }
+    .card.blue { border-top: 8px solid var(--blue); }
+    .card.red { border-top: 8px solid var(--red); }
+    .card.gold { border-top: 8px solid var(--gold); }
+    .card.purple { border-top: 8px solid var(--purple); }
+
+    .card p, .card li {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.45;
+    }
+
+    .card ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .step {
+      min-height: 256px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: white;
+    }
+
+    .num {
+      display: block;
+      color: rgba(19,32,35,.16);
+      font-size: 58px;
+      line-height: .9;
+      font-weight: 950;
+    }
+
+    .step h3 { margin-top: 20px; }
+
+    .step p {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.42;
+    }
+
+    .step:nth-child(1) { border-top: 8px solid var(--teal); }
+    .step:nth-child(2) { border-top: 8px solid var(--blue); }
+    .step:nth-child(3) { border-top: 8px solid var(--purple); }
+    .step:nth-child(4) { border-top: 8px solid var(--gold); }
+    .step:nth-child(5) { border-top: 8px solid var(--red); }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: .88fr 1.24fr .88fr;
+      gap: 18px;
+      margin-top: 32px;
+      align-items: stretch;
+    }
+
+    .panel {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: white;
+    }
+
+    .node {
+      margin-top: 11px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      color: var(--muted);
+      background: var(--paper);
+      font-size: 15px;
+      line-height: 1.32;
+      font-weight: 800;
+    }
+
+    .graph {
+      padding: 22px;
+      border-radius: 26px;
+      border: 1px solid rgba(15,143,131,.2);
+      background: linear-gradient(145deg, #fff, #eff8f6);
+    }
+
+    .graph-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      font-size: 17px;
+      font-weight: 950;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: #075d58;
+      background: #dff5ef;
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .graph-step {
+      padding: 14px 16px;
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: white;
+    }
+
+    .graph-step strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 16px;
+    }
+
+    .graph-step span {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .branches {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .branch {
+      min-height: 78px;
+      padding: 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      line-height: 1.32;
+      font-weight: 900;
+    }
+
+    .branch.ok { color: #075d58; background: #dff5ef; }
+    .branch.warn { color: #845700; background: #fff1cf; }
+    .branch.fail { color: #8f2a23; background: #ffe8e5; }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 24px;
+      margin-top: 30px;
+    }
+
+    .runbook {
+      display: grid;
+      gap: 12px;
+    }
+
+    .run {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: white;
+    }
+
+    .run b {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      color: white;
+      background: var(--dark);
+    }
+
+    .run strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 18px;
+    }
+
+    .run span {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.36;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 34px;
+    }
+
+    .score {
+      min-height: 160px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: white;
+    }
+
+    .score strong {
+      display: block;
+      font-size: 42px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .score span {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+
+    .controls {
+      position: fixed;
+      right: 28px;
+      bottom: 26px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid rgba(19,32,35,.12);
+      border-radius: 999px;
+      background: rgba(255,255,255,.82);
+      box-shadow: 0 12px 36px rgba(17,26,29,.14);
+      backdrop-filter: blur(10px);
+    }
+
+    button {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 50%;
+      color: white;
+      background: var(--dark);
+      font: inherit;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .36;
+      cursor: not-allowed;
+    }
+
+    #counter {
+      min-width: 60px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .hint {
+      position: fixed;
+      left: 30px;
+      bottom: 34px;
+      color: rgba(19,32,35,.62);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .stage {
+        height: auto;
+        min-height: 100vh;
+        padding: 14px;
+      }
+      .slide {
+        width: 100%;
+        max-height: none;
+        min-height: calc(100vh - 28px);
+        aspect-ratio: auto;
+        padding: 34px 24px 72px;
+        border-radius: 22px;
+      }
+      h1 { font-size: 46px; }
+      h2 { font-size: 34px; }
+      .lead { font-size: 19px; }
+      .grid-2, .cards-3, .flow, .architecture, .demo-grid, .score-grid {
+        grid-template-columns: 1fr;
+      }
+      .phone-wrap { min-height: 420px; }
+      .phone { width: 245px; height: 464px; }
+      .footer { left: 24px; right: 24px; }
+      .controls, .hint { display: none; }
+    }
+
+    @media print {
+      @page { size: 16in 9in; margin: 0; }
+      body {
+        width: 16in;
+        height: 9in;
+        background: white;
+        overflow: visible;
+      }
+      .stage {
+        display: block;
+        width: 16in;
+        height: auto;
+        padding: 0;
+        background: white;
+      }
+      .slide {
+        display: block !important;
+        width: 16in;
+        height: 9in;
+        max-height: none;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .controls, .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <section class="slide active">
+      <div class="grid-2">
+        <div>
+          <div class="kicker">Healthcare Track · Day 06</div>
+          <h1>AI Trợ Lý Đặt Lịch Khám</h1>
+          <p class="lead">Prototype giúp người bệnh mô tả triệu chứng bằng ngôn ngữ tự nhiên, được gợi ý chuyên khoa phù hợp, xem lịch trống và xác nhận lịch hẹn.</p>
+          <div class="chips">
+            <span class="chip"><span class="dot"></span>FastAPI</span>
+            <span class="chip"><span class="dot blue"></span>React + Vite</span>
+            <span class="chip"><span class="dot purple"></span>LangGraph + OpenAI</span>
+            <span class="chip"><span class="dot gold"></span>Postgres</span>
+          </div>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="phone-head">
+                <div class="status"><span>9:41</span><span>Demo</span></div>
+                <div class="app-title"><span class="app-icon">AI</span><span>Trợ lý đặt lịch khám</span></div>
+              </div>
+              <div class="phone-body">
+                <div class="bubble">Xin chào! Bạn đang có triệu chứng gì?</div>
+                <div class="bubble user">Tôi đau bụng âm ỉ 3 ngày nay</div>
+                <div class="bubble">Tôi gợi ý khám <strong>Nội - Tiêu Hóa</strong>.</div>
+                <div class="bubble">Lịch trống: <br><span class="mini-slot">08:00</span><span class="mini-slot">09:30</span><span class="mini-slot">14:00</span></div>
+                <div class="bubble">Đặt lịch thành công: <strong>A8F31C20</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Hospital Appointment Chatbot Demo</span><span>1 / 6</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Product Canvas</div>
+      <h2>Painpoint: người bệnh không biết nên chọn chuyên khoa nào</h2>
+      <p class="lead">Flow đặt lịch truyền thống bắt người dùng tự chọn khoa hoặc bác sĩ ngay từ đầu, trong khi họ thường chỉ biết triệu chứng ban đầu.</p>
+      <div class="cards-3">
+        <div class="card red">
+          <h3>Nỗi đau</h3>
+          <p>Chọn sai khoa, mất thời gian hỏi lại tổng đài, hoặc bỏ cuộc trước khi hoàn tất đặt lịch.</p>
+        </div>
+        <div class="card gold">
+          <h3>Giả thuyết</h3>
+          <p>Thêm AI triage trước bước chọn lịch sẽ giảm mơ hồ và đưa user vào đúng flow nhanh hơn.</p>
+        </div>
+        <div class="card teal">
+          <h3>Giải pháp</h3>
+          <p>Chatbot hỏi triệu chứng, gợi ý chuyên khoa, cảnh báo red flag và chuyển sang form đặt lịch.</p>
+        </div>
+      </div>
+      <div class="footer"><span>SPEC → Prototype → Demo</span><span>2 / 6</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">End-to-End Flow</div>
+      <h2>Luồng demo ngắn: từ triệu chứng đến mã lịch hẹn</h2>
+      <div class="flow">
+        <div class="step">
+          <span class="num">01</span>
+          <h3>Nhập thông tin</h3>
+          <p>Họ tên, số điện thoại, năm sinh trong bubble chat.</p>
+        </div>
+        <div class="step">
+          <span class="num">02</span>
+          <h3>Mô tả triệu chứng</h3>
+          <p>Ví dụ: “Tôi đau bụng âm ỉ 3 ngày nay”.</p>
+        </div>
+        <div class="step">
+          <span class="num">03</span>
+          <h3>AI phân luồng</h3>
+          <p>LangGraph gọi agent để tìm chuyên khoa và mức độ an toàn.</p>
+        </div>
+        <div class="step">
+          <span class="num">04</span>
+          <h3>Chọn lịch</h3>
+          <p>App hiển thị slot còn trống theo chuyên khoa được gợi ý.</p>
+        </div>
+        <div class="step">
+          <span class="num">05</span>
+          <h3>Xác nhận</h3>
+          <p>POST booking vào database và trả mã lịch hẹn.</p>
+        </div>
+      </div>
+      <div class="footer"><span>Happy case chạy thật trong app</span><span>3 / 6</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">AI Architecture</div>
+      <h2>AI không chỉ trả lời text: agent phải gọi tool trước khi route</h2>
+      <div class="architecture">
+        <div class="panel">
+          <h3>Frontend</h3>
+          <div class="node">React mobile chat UI</div>
+          <div class="node">Patient form trong chat</div>
+          <div class="node">Date/time booking form</div>
+          <div class="node">Confirmation card</div>
+        </div>
+        <div class="graph">
+          <div class="graph-head">
+            <span>POST /api/chat/triage</span>
+            <span class="pill">LangGraph</span>
+          </div>
+          <div class="graph-step">
+            <strong>collect_context</strong>
+            <span>Lấy latest user message và transcript gần nhất.</span>
+          </div>
+          <div class="graph-step">
+            <strong>analyze_symptoms</strong>
+            <span>ChatOpenAI + LangChain agent gọi search_hospital_specialties và query_available_slots.</span>
+          </div>
+          <div class="graph-step">
+            <strong>route_case</strong>
+            <span>Chọn happy, low-confidence hoặc red-flag path.</span>
+          </div>
+          <div class="branches">
+            <div class="branch ok">Happy<br>Gợi ý khoa + slot</div>
+            <div class="branch warn">Low confidence<br>Hỏi thêm</div>
+            <div class="branch fail">Red flag<br>Dừng booking</div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Data & API</h3>
+          <div class="node">30+ chuyên khoa từ chuyenkhoa.json</div>
+          <div class="node">Bác sĩ và slot mẫu</div>
+          <div class="node">Postgres: bookings, slots, specialties</div>
+          <div class="node">Fallback khi DB hoặc AI chưa sẵn sàng</div>
+        </div>
+      </div>
+      <div class="footer"><span>Files chính: triage_graph.py · tools.py · main.jsx</span><span>4 / 6</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Demo Script</div>
+      <h2>Show cả happy case lẫn error case trong 5 phút</h2>
+      <div class="demo-grid">
+        <div class="runbook">
+          <div class="run"><b>1</b><div><strong>Happy case</strong><span>Nhập “Tôi đau bụng âm ỉ 3 ngày nay” → AI gợi ý Nội - Tiêu Hóa → chọn slot → nhận mã lịch hẹn.</span></div></div>
+          <div class="run"><b>2</b><div><strong>Low confidence</strong><span>Nhập “Tôi thấy mệt mỏi” → app hỏi thêm thay vì chọn khoa vội.</span></div></div>
+          <div class="run"><b>3</b><div><strong>Red flag</strong><span>Nhập “Tôi đau ngực dữ dội và khó thở” → dừng đặt lịch thường, khuyến nghị hỗ trợ khẩn cấp.</span></div></div>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="phone-head">
+                <div class="status"><span>9:41</span><span>Safety</span></div>
+                <div class="app-title"><span class="app-icon">AI</span><span>Trợ lý đặt lịch khám</span></div>
+              </div>
+              <div class="phone-body">
+                <div class="bubble user">Tôi thấy mệt mỏi</div>
+                <div class="bubble">Thông tin hiện tại chưa đủ. Bạn bị mệt bao lâu rồi, có sốt hoặc đau vị trí nào không?</div>
+                <div class="bubble user">Tôi đau ngực dữ dội và khó thở</div>
+                <div class="bubble alert">Có dấu hiệu cần chú ý. Tôi sẽ không tiếp tục đặt lịch thường. Vui lòng liên hệ cấp cứu hoặc nhân viên bệnh viện.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>AI chỉ route đặt lịch, không chẩn đoán và không kê đơn</span><span>5 / 6</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Why It Scores</div>
+      <h2>Kết luận: prototype chứng minh đúng giả thuyết sản phẩm</h2>
+      <p class="lead">Sản phẩm giải quyết đúng điểm gãy trước booking: người bệnh có triệu chứng nhưng không biết bắt đầu ở chuyên khoa nào.</p>
+      <div class="score-grid">
+        <div class="score"><strong>AI</strong><span>Flow thật với LangGraph, LangChain tools và OpenAI.</span></div>
+        <div class="score"><strong>E2E</strong><span>Từ chat triệu chứng đến xác nhận booking trong DB.</span></div>
+        <div class="score"><strong>Safe</strong><span>Có hỏi thêm và red-flag path, không ép đặt lịch.</span></div>
+        <div class="score"><strong>Demo</strong><span>Docker compose chạy frontend, backend và Postgres.</span></div>
+      </div>
+      <div class="cards-3">
+        <div class="card teal">
+          <h3>Next step 1</h3>
+          <p>Guardrails y khoa được bác sĩ duyệt.</p>
+        </div>
+        <div class="card blue">
+          <h3>Next step 2</h3>
+          <p>Kết nối lịch thật và xác nhận qua SMS/Zalo.</p>
+        </div>
+        <div class="card purple">
+          <h3>Next step 3</h3>
+          <p>Đo tỷ lệ hoàn tất booking và tỷ lệ chuyển cấp cứu.</p>
+        </div>
+      </div>
+      <div class="footer"><span>Hospital Appointment Chatbot Demo</span><span>6 / 6</span></div>
+    </section>
+  </main>
+
+  <div class="hint">Mũi tên / Space để chuyển slide · Ctrl+P để xuất PDF</div>
+  <nav class="controls" aria-label="Điều hướng slide">
+    <button type="button" id="prev" aria-label="Slide trước">‹</button>
+    <span id="counter">1 / 6</span>
+    <button type="button" id="next" aria-label="Slide sau">›</button>
+  </nav>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const prev = document.querySelector("#prev");
+    const next = document.querySelector("#next");
+    const counter = document.querySelector("#counter");
+    let index = 0;
+
+    function show(nextIndex) {
+      index = Math.max(0, Math.min(slides.length - 1, nextIndex));
+      slides.forEach((slide, i) => slide.classList.toggle("active", i === index));
+      prev.disabled = index === 0;
+      next.disabled = index === slides.length - 1;
+      counter.textContent = `${index + 1} / ${slides.length}`;
+      document.title = `Slide ${index + 1} - Hospital Chatbot Demo`;
+    }
+
+    prev.addEventListener("click", () => show(index - 1));
+    next.addEventListener("click", () => show(index + 1));
+
+    document.addEventListener("keydown", (event) => {
+      if (["ArrowRight", " ", "PageDown"].includes(event.key)) {
+        event.preventDefault();
+        show(index + 1);
+      }
+      if (["ArrowLeft", "PageUp"].includes(event.key)) {
+        event.preventDefault();
+        show(index - 1);
+      }
+      if (event.key === "Home") show(0);
+      if (event.key === "End") show(slides.length - 1);
+    });
+
+    show(0);
+  </script>
+</body>
+</html>

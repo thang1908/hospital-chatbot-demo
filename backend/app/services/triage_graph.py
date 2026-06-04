@@ -183,8 +183,7 @@ TRIAGE_AGENT_SYSTEM_PROMPT = dedent(
     - If a corrected latest message contains one clear symptom that maps well
       to a specialty and no clear emergency sign, choose exactly one hospital
       specialty with needs_more_info=false.
-    - reasoning_summary must be 1-2 short Vietnamese sentences explaining the
-      observable basis for the routing decision. Do not reveal hidden chain-of-thought.
+    - reasoning_summary must be 1 short Vietnamese sentence (max 15 words) explaining the routing decision concisely. Be direct and avoid filler phrases.
     """
 ).strip()
 
@@ -446,13 +445,11 @@ def route_case(state: TriageState) -> str:
 
 def handle_red_flag(state: TriageState) -> TriageState:
     flags = ", ".join(state.get("red_flags", []))
-    reasoning = state.get("reasoning_summary") or "Mô tả có dấu hiệu cần ưu tiên an toàn."
     return {
         "path": "failure",
         "reply": (
-            f"{reasoning} "
-            f"Tôi phát hiện dấu hiệu cần chú ý: {flags}. "
-            "Tôi sẽ không tiếp tục đặt lịch thường. Vui lòng liên hệ cấp cứu hoặc nhân viên bệnh viện để được hỗ trợ ngay."
+            f"Phát hiện dấu hiệu cần chú ý: {flags}. "
+            "Vui lòng liên hệ cấp cứu hoặc nhân viên y tế ngay."
         ),
         "slots": [],
     }
@@ -460,18 +457,11 @@ def handle_red_flag(state: TriageState) -> TriageState:
 
 def handle_low_confidence(state: TriageState) -> TriageState:
     questions = state.get("follow_up_questions") or []
-    question_text = ""
-    if questions:
-        question_text = " Bạn có thể trả lời thêm: " + " ".join(
-            f"{index + 1}. {question}" for index, question in enumerate(questions)
-        )
+    question_text = " ".join(f"{index + 1}. {question}" for index, question in enumerate(questions)) if questions else ""
 
     return {
         "path": "low-confidence",
-        "reply": (
-            f"{state.get('reasoning_summary') or 'Thông tin hiện tại chưa đủ để gợi ý chuyên khoa an toàn.'} "
-            f"{question_text}"
-        ),
+        "reply": f"{state.get('reasoning_summary') or 'Cần thêm thông tin.'} {question_text}".strip(),
         "slots": [],
     }
 
@@ -509,10 +499,7 @@ def handle_happy_path(state: TriageState) -> TriageState:
 
     return {
         "path": "happy",
-        "reply": (
-            f"{reasoning + ' ' if reasoning else ''}"
-            f"Dựa trên mô tả hiện tại, tôi gợi ý bạn nên khám **{specialty}**."
-        ),
+        "reply": f"Tôi gợi ý khám **{specialty}**. {reasoning or ''}".strip(),
         "slots": available_slots,
         "booking_ready": True,
     }

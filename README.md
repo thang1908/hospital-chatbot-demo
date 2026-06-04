@@ -169,6 +169,71 @@ Mở:
 
 ---
 
+## Deploy với ngrok (public URL)
+
+Để truy cập từ điện thoại hoặc chia sẻ demo:
+
+### Bước 1: Cài ngrok
+
+```bash
+# macOS
+brew install ngrok
+
+# hoặc tải từ https://ngrok.com/download
+```
+
+### Bước 2: Lấy authtoken
+
+1. Đăng ký tài khoản miễn phí tại https://ngrok.com
+2. Lấy authtoken tại https://dashboard.ngrok.com/get-started/your-authtoken
+3. Chạy: `ngrok config add-authtoken YOUR_TOKEN`
+
+### Bước 3: Chạy script setup
+
+```bash
+./start-ngrok.sh
+```
+
+Script sẽ tạo file `ngrok.yml` với cấu hình 2 tunnels (backend + frontend).
+
+### Bước 4: Start tunnels
+
+```bash
+ngrok start --all --config ngrok.yml
+```
+
+Bạn sẽ thấy 2 URL:
+- `https://xxxx-backend.ngrok-free.app` → Backend
+- `https://yyyy-frontend.ngrok-free.app` → Frontend
+
+### Bước 5: Cập nhật config
+
+**Backend CORS** — sửa `backend/.env`:
+```env
+FRONTEND_URL=https://yyyy-frontend.ngrok-free.app
+```
+
+**Frontend API URL** — rebuild với env:
+```bash
+docker compose build frontend --build-arg VITE_API_BASE_URL=https://xxxx-backend.ngrok-free.app
+```
+
+Hoặc đơn giản hơn: sửa trực tiếp `frontend/src/main.jsx`:
+```js
+const API_BASE_URL = "https://xxxx-backend.ngrok-free.app";
+```
+
+### Bước 6: Restart
+
+```bash
+docker compose restart backend
+docker compose restart frontend
+```
+
+Giờ mở `https://yyyy-frontend.ngrok-free.app` từ điện thoại để test.
+
+---
+
 ## API chính
 
 ### Triage chat
