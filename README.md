@@ -1,5 +1,19 @@
 # Hospital Appointment Chatbot Demo
 
+## Thông tin nhóm
+
+- **Tên nhóm:** Hospital Appointment Chatbot Demo
+- **Track:** Healthcare
+- **Thành viên:**
+  - `2A202600934` - Trần Trúc Quỳnh
+  - `2A202600855` - Nguyễn Tiến Huân
+  - `2A202600840` - Nguyễn Nam Thắng
+  - `2A202600663` - Phạm Huy Cảnh
+  - `2A202600810` - Nguyễn Xuân Tới
+  - `2A202600575` - Phạm Thị Bích Ngọc
+
+---
+
 Prototype hackathon cho đề tài chatbot hỗ trợ đặt lịch khám bệnh viện.
 
 ## Mục tiêu demo
